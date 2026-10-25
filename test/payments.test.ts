@@ -47,4 +47,15 @@ describe('API', () => {
     expect(res.status).toBe(400);
     expect(charge).not.toHaveBeenCalled();
   });
+
+  it('rejects an empty token with 400 and reports the nested field path', async () => {
+    charge.mockClear();
+    const res = await request(app.getHttpServer())
+      .post('/payments')
+      .send({ ...valid, opaqueData: { dataDescriptor: '', dataValue: 'tok' } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+    expect(res.body.details[0].path).toBe('opaqueData.dataDescriptor');
+    expect(charge).not.toHaveBeenCalled();
+  });
 });

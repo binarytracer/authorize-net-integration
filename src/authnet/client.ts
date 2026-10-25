@@ -26,6 +26,7 @@ const responseSchema = z.object({
       transId: z.string().optional(),
       authCode: z.string().optional(),
       errors: z.array(z.object({ errorCode: z.string(), errorText: z.string() })).optional(),
+      messages: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
     })
     .optional(),
   messages: z.object({
@@ -33,6 +34,12 @@ const responseSchema = z.object({
     message: z.array(z.object({ code: z.string(), text: z.string() })),
   }),
 });
+
+const RESPONSE_CODE_TEXT: Record<string, string> = {
+  '2': 'The payment was declined.',
+  '3': 'There was an error processing the payment.',
+  '4': 'The payment is held for review and was not completed.',
+};
 
 type Fetch = typeof fetch;
 
@@ -78,11 +85,20 @@ export class AuthnetClient {
       return { ok: true, transactionId: tx.transId, authCode: tx.authCode ?? '' };
     }
     const err = tx?.errors?.[0];
-    const msg = messages.message[0];
+    const txMsg = tx?.messages?.[0];
+    // When the request itself succeeded, messages[0] only says "Successful." - that is not the payment result.
+    const requestMsg = messages.resultCode === 'Ok' ? undefined : messages.message[0];
     return {
       ok: false,
-      code: err?.errorCode ?? msg?.code ?? 'DECLINED',
-      message: err?.errorText ?? msg?.text ?? 'The payment was declined.',
+      code: err?.errorCode ?? txMsg?.code ?? requestMsg?.code ?? (tx?.responseCode ? `RESPONSE_${tx.responseCode}` : 'DECLINED'),
+      // Held for review comes back as "Your order has been received", which reads like a success.
+      message:
+        (tx?.responseCode === '4' ? RESPONSE_CODE_TEXT['4'] : undefined) ??
+        err?.errorText ??
+        txMsg?.description ??
+        requestMsg?.text ??
+        RESPONSE_CODE_TEXT[tx?.responseCode ?? ''] ??
+        'The payment was declined.',
     };
   }
 }

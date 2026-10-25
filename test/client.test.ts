@@ -29,6 +29,30 @@ describe('AuthnetClient.charge', () => {
     });
   });
 
+  it('does not report a held-for-review payment as a success', async () => {
+    const f = reply({
+      transactionResponse: {
+        responseCode: '4',
+        transId: '999',
+        messages: [{ code: '252', description: 'Your order has been received. Thank you for your business!' }],
+      },
+      messages: { resultCode: 'Ok', message: [{ code: 'I00001', text: 'Successful.' }] },
+    });
+    expect(await new AuthnetClient(creds, f).charge(input)).toEqual({
+      ok: false, code: '252', message: 'The payment is held for review and was not completed.',
+    });
+  });
+
+  it('reports a duplicate transaction instead of the request-level "Successful."', async () => {
+    const f = reply({
+      transactionResponse: { responseCode: '3', messages: [{ code: '11', description: 'A duplicate transaction has been submitted.' }] },
+      messages: { resultCode: 'Ok', message: [{ code: 'I00001', text: 'Successful.' }] },
+    });
+    expect(await new AuthnetClient(creds, f).charge(input)).toEqual({
+      ok: false, code: '11', message: 'A duplicate transaction has been submitted.',
+    });
+  });
+
   it('handles a network failure', async () => {
     const f = vi.fn().mockRejectedValue(new Error('offline'));
     expect(await new AuthnetClient(creds, f).charge(input)).toMatchObject({ ok: false, code: 'NETWORK' });

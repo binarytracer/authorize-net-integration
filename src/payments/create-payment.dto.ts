@@ -1,10 +1,34 @@
-import { z } from 'zod';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsNotEmptyObject, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, ValidateNested } from 'class-validator';
 
-export const createPaymentSchema = z.object({
-  amount: z.string().regex(/^\d+\.\d{2}$/, 'amount must look like 10.00'),
-  // One-time token produced on the device by Accept.js / the Accept mobile SDK.
-  opaqueData: z.object({ dataDescriptor: z.string().min(1), dataValue: z.string().min(1) }),
-  invoiceNumber: z.string().max(20).optional(),
-});
+// One-time token produced on the device by Accept.js / the Accept mobile SDK.
+export class OpaqueDataDto {
+  @ApiProperty({ example: 'COMMON.ACCEPT.INAPP.PAYMENT' })
+  @IsString()
+  @IsNotEmpty()
+  dataDescriptor!: string;
 
-export type CreatePaymentDto = z.infer<typeof createPaymentSchema>;
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  dataValue!: string;
+}
+
+export class CreatePaymentDto {
+  @ApiProperty({ example: '10.00', description: 'Decimal string with exactly two decimals' })
+  @Matches(/^\d+\.\d{2}$/, { message: 'amount must look like 10.00' })
+  amount!: string;
+
+  @ApiProperty({ type: OpaqueDataDto })
+  @IsNotEmptyObject()
+  @ValidateNested()
+  @Type(() => OpaqueDataDto)
+  opaqueData!: OpaqueDataDto;
+
+  @ApiPropertyOptional({ maxLength: 20 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  invoiceNumber?: string;
+}
