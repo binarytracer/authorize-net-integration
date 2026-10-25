@@ -1,8 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "ES2024",
+    "module": "nodenext",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
@@ -10,8 +9,7 @@
     "emitDecoratorMetadata": true,
     "skipLibCheck": true,
     "declaration": false,
-    "outDir": "dist",
-    "baseUrl": "./"
+    "outDir": "dist"
   },
   "include": ["src", "test"]
 }
