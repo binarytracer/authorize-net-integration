@@ -119,28 +119,34 @@ sequenceDiagram
   actor U as Customer
   participant A as Mobile app
   participant AC as Authorize.net Accept (token service)
-  participant API as invictus-authnet (this service)
+  box rgba(255, 140, 0, 0.30) Magento store equivalent
+    participant API as invictus-authnet (this service)<br/>= stands in for the Magento store
+  end
   participant AN as Authorize.net sandbox
 
   U->>A: 🟡 Enters card number, expiry, security code (simulated by yarn client)
-  rect rgb(214, 245, 214)
-    A->>AC: ✅ Card details + API Login ID + Public Client Key
-    Note over A,AC: Card goes straight to Authorize.net.<br/>It never touches our servers.
-    AC-->>A: ✅ One-time token (opaqueData)
-    A->>API: ✅ POST /payments { amount, opaqueData }
-    API->>AN: ✅ createTransactionRequest (token + secret transaction key)
-    alt Approved
-      AN-->>API: ✅ Approved + transaction id
-      API-->>A: ✅ 200 { ok: true, transactionId }
-    else Declined or failed
-      AN-->>API: ✅ Error (declined, duplicate, held for review, ...)
-      API-->>A: ✅ 402 { ok: false, code, message }
-    end
+  A->>AC: ✅ Card details + API Login ID + Public Client Key
+  Note over A,AC: Card goes straight to Authorize.net.<br/>It never touches our servers.
+  AC-->>A: ✅ One-time token (opaqueData)
+  A->>API: ✅ POST /payments { amount, opaqueData }
+  Note over API: Magento's role: take the token from the app<br/>and charge it with the secret transaction key
+  API->>AN: ✅ createTransactionRequest (token + secret transaction key)
+  alt Approved
+    AN-->>API: ✅ Approved + transaction id
+    API-->>A: ✅ 200 { ok: true, transactionId }
+  else Declined or failed
+    AN-->>API: ✅ Error (declined, duplicate, held for review, ...)
+    API-->>A: ✅ 402 { ok: false, code, message }
   end
   Note over U,A: ⬜ Not built yet: the real app screens<br/>("Order confirmed", or a clear message and retry)
 ```
 
-**Legend:** ✅ done and tested against the sandbox (green area), 🟡 simulated by `yarn client`
+> **invictus-authnet (the orange column) is the stand-in for the Magento store.** In the real setup the store backend takes
+> the place of this service: it receives the one-time token from the app, charges it with the secret
+> transaction key, and returns approved or declined. This service exists so the app side and the
+> Authorize.net side can be built and tested before the store team is involved.
+
+**Legend:** ✅ done and tested against the sandbox, 🟡 simulated by `yarn client`
 (there is no real app yet), ⬜ not built yet and left to the app and store teams.
 
 What lives where:
@@ -155,7 +161,7 @@ The token is single use and expires after about 15 minutes, so the app should ca
 
 Notes for the app side:
 - Authorize.net provides native Accept SDKs for Android and iOS. There is no official Flutter package, so a Flutter app needs a small platform channel to the native SDK, or Accept.js inside a web view.
-- Whether the order in the store is created by this service, or by the store itself using the same token, is still open (see INVM-33). If the store creates the order, the app sends the token to the store instead and this service stays a sandbox test tool.
+- Whether the order in the store is created by this service, or by the store itself using the same token, is still open (see INVM-33). If the store creates the order, the app sends the token to the Magento store instead of this service, and this service stays a sandbox test tool.
 
 ## Endpoints
 
